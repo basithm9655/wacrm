@@ -3,7 +3,6 @@ import { execFile } from 'node:child_process'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import ffmpegStatic from 'ffmpeg-static'
 import { createClient } from '@/lib/supabase/server'
 import {
   checkRateLimit,
@@ -26,7 +25,17 @@ const MAX_INPUT_BYTES = 16 * 1024 * 1024
  * hosts where the bundled binary can't run (e.g. a system ffmpeg).
  */
 function resolveFfmpegPath(): string | null {
-  return process.env.FFMPEG_PATH || ffmpegStatic || null
+  if (process.env.FFMPEG_PATH) {
+    return process.env.FFMPEG_PATH
+  }
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const ffmpegStatic = require('ffmpeg-static')
+    return ffmpegStatic || null
+  } catch (error) {
+    console.warn('[transcode-audio] ffmpeg-static could not be loaded dynamically:', error)
+    return null
+  }
 }
 
 function runFfmpeg(binary: string, args: string[]): Promise<void> {
